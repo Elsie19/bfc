@@ -15,15 +15,21 @@ function array.contains() {
 cell_size=30000
 while getopts 'o:s:' OPTION; do
     case "${OPTION}" in
-        o) flags_string="${OPTARG}" ;;
-        s) cell_size="${OPTARG}" ;;
-        # Current optimization flags are bounds,contract
-        *) echo "Usage: ${0##*/} [-o optimization,flags] input output" >&2 && return 1 ;;
+        o) flags_string="${OPTARG}" custom_flags=true ;;
+        s) flags_string="${OPTARG}" custom_flags=false ;;
+        # Current optimization flags are contract,clear,stack_size
+        *) echo "Usage: ${0##*/} [-o optimization,flags] input output" >&2 && exit 1 ;;
     esac
 done
 shift $((OPTIND - 1))
-if [[ -n $flags_string ]]; then
+if [[ -n $flags_string && $custom_flags == true ]]; then
     IFS=',' read -ra flags <<< "${flags_string}"
+elif [[ $custom_flags == false ]]; then
+    case "${flags_string}" in
+        'size' | 's') flags=(contract clear) flags_string="contract,clear" ;;
+        'speed' | 3) flags=(contract clear stack_size) flags_string="contract,clear,stack_size" ;;
+        *) unset flags_string ;;
+    esac
 fi
 
 file="${1?No file passed}"
@@ -65,10 +71,12 @@ done < "${file}" > "${out_file}.bir"
 echo "- Running optimizations"
 
 #TODO: optimize [-] or [+] into cells[ptr]=0
-clear_opt=$(< "${out_file}.bir")
-clear_opt="${clear_opt//Open$'\n'Right$'\n'Close/Clear}"
-clear_opt="${clear_opt//Open$'\n'Left$'\n'Close/Clear}"
-echo "${clear_opt}" > "${out_file}.bir"
+if array.contains flags "clear"; then
+    clear_opt=$(< "${out_file}.bir")
+    clear_opt="${clear_opt//Open$'\n'Right$'\n'Close/Clear}"
+    clear_opt="${clear_opt//Open$'\n'Left$'\n'Close/Clear}"
+    echo "${clear_opt}" > "${out_file}.bir"
+fi
 
 # Apply optimizations. We're gonna use uniq to get the count of contiguous duplicate lines hehe.
 # Finally! A use for uniq!
@@ -100,30 +108,22 @@ for line in "${prog_ir[@]}"; do
         'Right'*) {
             if array.contains flags "contract"; then
                 echo "((cells[ptr]+=${line##* }))"
-                if ! array.contains flags "bounds"; then
-                    echo '((cells[ptr] > 255)) && cells[ptr]=$((cells[ptr] - 255))'
-                fi
+                echo '((cells[ptr] > 255)) && cells[ptr]=$((cells[ptr] - 255))'
             else
                 for ((i = 1; i <= "${line##* }"; i++)); do
                     echo '((cells[ptr]++))'
-                    if ! array.contains flags "bounds"; then
-                        echo '((cells[ptr] > 255)) && cells[ptr]=0'
-                    fi
+                    echo '((cells[ptr] > 255)) && cells[ptr]=0'
                 done
             fi
         } ;;
         'Left'*) {
             if array.contains flags "contract"; then
                 echo "((cells[ptr]-=${line##* }))"
-                if ! array.contains flags "bounds"; then
-                    echo '((cells[ptr] < 0)) && cells[ptr]=$((255 + cells[ptr]))'
-                fi
+                echo '((cells[ptr] < 0)) && cells[ptr]=$((255 + cells[ptr]))'
             else
                 for ((i = 1; i <= "${line##* }"; i++)); do
                     echo '((cells[ptr]--))'
-                    if ! array.contains flags "bounds"; then
-                        echo '((cells[ptr] < 0)) && cells[ptr]=255'
-                    fi
+                    echo '((cells[ptr] < 0)) && cells[ptr]=255'
                 done
             fi
         } ;;
