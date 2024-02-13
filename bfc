@@ -134,11 +134,15 @@ for line in "${prog_ir[@]}"; do
             done
             ;;
         'In'*) for ((i = 1; i <= "${line##* }"; i++)); do
-            echo 'read -r -n1 input'
-            echo '[[ -n $input ]] && cells[ptr]=${input}'
+            echo "IFS=$'\n' read -r -n1 input && input+=$'\n'"
+            echo '[[ -n $input ]] && {'
+            echo "LC_CTYPE=C printf -v f %d \"'\${input::1}\""
+            echo 'cells[ptr]=$f'
+            echo 'input=${input:1}'
+            echo '}'
         done ;;
         'Open'*) for ((i = 1; i <= "${line##* }"; i++)); do
-            echo 'while ((cells[ptr])); do'
+            echo 'while ((cells[ptr] != 0)); do'
         done ;;
         'Close'*) for ((i = 1; i <= "${line##* }"; i++)); do
             echo 'done'
