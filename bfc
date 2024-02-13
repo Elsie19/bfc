@@ -56,6 +56,10 @@ while IFS= read -r -n1 char; do
     esac
 done < "${file}" > "${out_file}.bir"
 #TODO: optimize [-] or [+] into cells[ptr]=0
+clear_opt=$(< "${out_file}.bir")
+clear_opt="${clear_opt//Open$'\n'Right$'\n'Close/Clear}"
+clear_opt="${clear_opt//Open$'\n'Left$'\n'Close/Clear}"
+echo "${clear_opt}" > "${out_file}.bir"
 
 # Apply optimizations. We're gonna use uniq to get the count of contiguous duplicate lines hehe.
 # Finally! A use for uniq!
@@ -112,19 +116,25 @@ for line in "${prog_ir[@]}"; do
                 done
             fi
         } ;;
-        'Out'*) {
+        'Out'*)
             for ((i = 1; i <= "${line##* }"; i++)); do
                 echo 'printf -v hex "%x" "${cells[$ptr]}"'
                 echo 'printf %b "\x$hex"'
-                echo 'unset hex'
             done
-        } ;;
-        'In'*) {
-            echo 'read -n1 input'
+            ;;
+        'In'*) for ((i = 1; i <= "${line##* }"; i++)); do
+            echo 'read -r -n1 input'
             echo '[[ -n $input ]] && cells[ptr]=${input}'
-        } ;;
-        'Open'*) echo 'while ((cells[ptr])); do' ;;
-        'Close'*) echo 'done' ;;
+        done ;;
+        'Open'*) for ((i = 1; i <= "${line##* }"; i++)); do
+            echo 'while ((cells[ptr])); do'
+        done ;;
+        'Close'*) for ((i = 1; i <= "${line##* }"; i++)); do
+            echo 'done'
+        done ;;
+        'Clear'*) for ((i = 1; i <= "${line##* }"; i++)); do
+            echo 'cells[ptr]=0'
+        done ;;
         *) : ;; # They're comments
     esac
 done >> "${out_file}"
