@@ -27,7 +27,7 @@ if [[ -n $flags_string && $custom_flags == true ]]; then
 elif [[ $custom_flags == false ]]; then
     case "${flags_string}" in
         'size' | 's') flags=(contract clear) flags_string="contract,clear" ;;
-        'speed' | 3) flags=(contract clear stack_size) flags_string="contract,clear,stack_size" ;;
+        'speed' | 3) flags=(contract clear stack_size remove_state) flags_string="contract,clear,stack_size,remove_state" ;;
         *) unset flags_string ;;
     esac
 fi
@@ -55,7 +55,7 @@ echo "- Generating outfile"
 echo "- Creating IR representation"
 
 # IR representation
-while IFS= read -r -n1 char; do
+bir="$(while IFS= read -r -n1 char; do
     case "${char}" in
         '>') echo 'Add' ;;
         '<') echo 'Sub' ;;
@@ -65,23 +65,22 @@ while IFS= read -r -n1 char; do
         ',') echo 'In' ;;
         '[') echo 'Open' ;;
         ']') echo 'Close' ;;
+        '#') array.contains flags "remove_state" || echo 'State' ;;
         *) : ;; # They're comments
     esac
-done < "${file}" > "${out_file}.bir"
+done < "${file}")"
 
 echo "- Running optimizations"
 
 if array.contains flags "clear"; then
-    clear_opt=$(< "${out_file}.bir")
-    clear_opt="${clear_opt//Open$'\n'Right$'\n'Close/Clear}"
-    clear_opt="${clear_opt//Open$'\n'Left$'\n'Close/Clear}"
-    echo "${clear_opt}" > "${out_file}.bir"
+    bir="${bir//Open$'\n'Right$'\n'Close/Clear}"
+    bir="${bir//Open$'\n'Left$'\n'Close/Clear}"
 fi
 
 # Apply optimizations. We're gonna use uniq to get the count of contiguous duplicate lines hehe.
 # Finally! A use for uniq!
 prog_ir=()
-mapfile -t prog_ir < <(uniq -c "${out_file}.bir" | awk '{print $2,$1}')
+mapfile -t prog_ir < <(uniq -c <<< "${bir}" | awk '{print $2,$1}')
 
 echo "- Writing to outfile"
 
@@ -136,9 +135,10 @@ for line in "${prog_ir[@]}"; do
         'In'*) for ((i = 1; i <= "${line##* }"; i++)); do
             echo "IFS=$'\n' read -r -n1 input && input+=$'\n'"
             echo '[[ -n $input ]] && {'
-            echo "LC_CTYPE=C printf -v f %d \"'\${input::1}\""
-            echo 'cells[ptr]=$f'
-            echo 'input=${input:1}'
+            echo "  LC_CTYPE=C printf -v f %d \"'\${input::1}\""
+            echo '  cells[ptr]=$f'
+            echo '  unset f'
+            echo '  input=${input:1}'
             echo '}'
         done ;;
         'Open'*) for ((i = 1; i <= "${line##* }"; i++)); do
@@ -150,8 +150,20 @@ for line in "${prog_ir[@]}"; do
         'Clear'*) for ((i = 1; i <= "${line##* }"; i++)); do
             echo 'cells[ptr]=0'
         done ;;
+        'State'*) for ((i = 1; i <= "${line##* }"; i++)); do
+            echo '# DEBUGGING START'
+            echo 'echo -n "["'
+            echo "for ((i = 0; i <= 10; i++)); do"
+            echo '  if ((i == ptr)); then'
+            echo '      printf " \e[31m0x%X\e[0m " "${cells[i]}"'
+            echo '  else'
+            echo '      printf " 0x%X " "${cells[i]}"'
+            echo '  fi'
+            echo "done"
+            echo "echo ']'"
+            echo '# DEBUGGING END'
+        done ;;
         *) : ;; # They're comments
     esac
 done >> "${out_file}"
-rm "${out_file}.bir"
 chmod +x "${out_file}"
