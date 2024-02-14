@@ -87,13 +87,17 @@ for line in "${prog_ir[@]}"; do
             if array.contains flags "contract"; then
                 echo "((ptr+=${line##* }))"
                 echo 'if ((ptr > ${#cells[@]})); then'
-                echo '  ptr=$((ptr - ${#cells[@]}))'
+                echo '  ptr=$((ptr - ${#cells[@]} - 1))'
+                echo 'elif ((ptr < 0)); then'
+                echo '  ptr=$((${#cells[@]} - ptr))'
                 echo 'fi'
             else
                 for ((i = 1; i <= "${line##* }"; i++)); do
                     echo '((ptr++))'
                     echo 'if ((ptr > ${#cells[@]})); then'
-                    echo '  ptr=$((ptr - ${#cells[@]}))'
+                    echo '  ptr=$((ptr - ${#cells[@]} - 1))'
+                    echo 'elif ((ptr < 0)); then'
+                    echo '  ptr="${#cells[@]}"'
                     echo 'fi'
                 done
             fi
@@ -102,13 +106,17 @@ for line in "${prog_ir[@]}"; do
             if array.contains flags "contract"; then
                 echo "((ptr-=${line##* }))"
                 echo 'if ((ptr > ${#cells[@]})); then'
-                echo '  ptr=$((ptr - ${#cells[@]}))'
+                echo '  ptr=$((ptr - ${#cells[@]} - 1))'
+                echo 'elif ((ptr < 0)); then'
+                echo '  ptr=$((${#cells[@]} - ptr))'
                 echo 'fi'
             else
                 for ((i = 1; i <= "${line##* }"; i++)); do
                     echo '((ptr--))'
                     echo 'if ((ptr > ${#cells[@]})); then'
-                    echo '  ptr=$((ptr - ${#cells[@]}))'
+                    echo '  ptr=$((ptr - ${#cells[@]} - 1))'
+                    echo 'elif ((ptr < 0)); then'
+                    echo '  ptr="${#cells[@]}"'
                     echo 'fi'
                 done
             fi
