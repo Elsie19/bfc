@@ -50,7 +50,7 @@ echo -e "  Cell limit: \033[33m${cell_size}\033[0m"
     echo 'LC_ALL=C'
     echo "cells=({0..${cell_size}})"
     echo 'for i in "${cells[@]}"; do'
-    echo 'cells[i]=0'
+    echo '  cells[i]=0'
     echo 'done'
     echo 'declare -i ptr=0'
 } > "${out_file}"
