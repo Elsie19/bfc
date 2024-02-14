@@ -27,7 +27,7 @@ if [[ -n $flags_string && $custom_flags == true ]]; then
     IFS=',' read -ra flags <<< "${flags_string}"
 elif [[ $custom_flags == false ]]; then
     case "${flags_string}" in
-        'size' | 's') flags=(contract clear) flags_string="contract,clear" ;;
+        'size' | 's') flags=(contract clear remove_state) flags_string="contract,clear,remove_state" ;;
         'speed' | 3) flags=(contract clear stack_size remove_state) flags_string="contract,clear,stack_size,remove_state" ;;
         *) unset flags_string ;;
     esac
@@ -86,30 +86,22 @@ for line in "${prog_ir[@]}"; do
         'Add'*)
             if array.contains flags "contract"; then
                 echo "((ptr+=${line##* }))"
-                echo 'if ((ptr > ${#cells[@]})); then'
-                echo '  ptr=$((ptr - ${#cells[@]}))'
-                echo 'fi'
+                echo '((ptr > ${#cells[@]})) && ptr=$((ptr - ${#cells[@]}))'
             else
                 for ((i = 1; i <= "${line##* }"; i++)); do
                     echo '((ptr++))'
-                    echo 'if ((ptr > ${#cells[@]})); then'
-                    echo '  ptr=$((ptr - ${#cells[@]}))'
-                    echo 'fi'
+                    echo '((ptr > ${#cells[@]})) && ptr=$((ptr - ${#cells[@]}))'
                 done
             fi
             ;;
         'Sub'*)
             if array.contains flags "contract"; then
                 echo "((ptr-=${line##* }))"
-                echo 'if ((ptr < 0)); then'
-                echo '  ptr=$((${#cells[@]} + ptr))'
-                echo 'fi'
+                echo '((ptr < 0)) && ptr=$((${#cells[@]} + ptr))'
             else
                 for ((i = 1; i <= "${line##* }"; i++)); do
                     echo '((ptr--))'
-                    echo 'if ((ptr < 0)); then'
-                    echo '  ptr="${#cells[@]}"'
-                    echo 'fi'
+                    echo '((ptr < 0)) && ptr="${#cells[@]}"'
                 done
             fi
             ;;
