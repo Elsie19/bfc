@@ -89,18 +89,30 @@ for line in "${prog_ir[@]}"; do
         'Add'*)
             if array.contains flags "contract"; then
                 echo "((ptr+=${line##* }))"
+                echo 'if ((ptr > ${#cells[@]})); then'
+                echo '  ptr=$((ptr - ${#cells[@]}))'
+                echo 'fi'
             else
                 for ((i = 1; i <= "${line##* }"; i++)); do
                     echo '((ptr++))'
+                    echo 'if ((ptr > ${#cells[@]})); then'
+                    echo '  ptr=$((ptr - ${#cells[@]}))'
+                    echo 'fi'
                 done
             fi
             ;;
         'Sub'*)
             if array.contains flags "contract"; then
                 echo "((ptr-=${line##* }))"
+                echo 'if ((ptr > ${#cells[@]})); then'
+                echo '  ptr=$((ptr - ${#cells[@]}))'
+                echo 'fi'
             else
                 for ((i = 1; i <= "${line##* }"; i++)); do
                     echo '((ptr--))'
+                    echo 'if ((ptr > ${#cells[@]})); then'
+                    echo '  ptr=$((ptr - ${#cells[@]}))'
+                    echo 'fi'
                 done
             fi
             ;;
